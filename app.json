@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Tefereth Scripts",
+    "slug": "tefereth-scripts",
+    "version": "1.0.0",
+    "sdkVersion": "53.0.0", // This line sets the Expo SDK version
+    "platforms": ["ios", "android", "web"],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f9fafb"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f9fafb"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
