@@ -1,11 +1,8 @@
 // TODO: Move all hardcoded values from components to this constants file
 // NOTE: This file should be the single source of truth for app constants
 
-export const API_ENDPOINTS = {
-  // TODO: Move these to environment variables
-  AI_LLM: 'https://api.a0.dev/ai/llm',
-  IMAGE_GENERATION: 'https://api.a0.dev/assets/image',
-};
+// COMPLETED: API endpoints moved to environment configuration (config/env.ts)
+// Use API_URLS from config/env.ts instead of these constants
 
 export const FILE_LIMITS = {
   // TODO: Make these configurable based on user tier or device capabilities

@@ -128,7 +128,7 @@ class ImageCacheManager {
       await AsyncStorage.setItem(cacheKey, JSON.stringify({ url, cached: true }));
       
       // Check cache size limits
-      await this.enforceCache Limits();
+      await this.enforceCacheLimits();
       
       return true;
     } catch (error) {
