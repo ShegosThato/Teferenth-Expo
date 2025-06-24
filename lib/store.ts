@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Scene {
   id: string;
@@ -26,12 +28,24 @@ interface StoreState {
   removeProject: (id: string) => void;
 }
 
-export const useStore = create<StoreState>((set) => ({
-  projects: [],
-  addProject: (project) => set((state) => ({ projects: [project, ...state.projects] })),
-  updateProject: (id, partial) =>
-    set((state) => ({
-      projects: state.projects.map((p) => (p.id === id ? { ...p, ...partial } : p)),
-    })),
-  removeProject: (id) => set((state) => ({ projects: state.projects.filter((p) => p.id !== id) })),
-}));
+// TODO: Add middleware for debugging and logging
+// NOTE: Consider splitting store if it grows larger
+export const useStore = create<StoreState>()(
+  persist(
+    (set) => ({
+      projects: [],
+      addProject: (project) => set((state) => ({ projects: [project, ...state.projects] })),
+      updateProject: (id, partial) =>
+        set((state) => ({
+          projects: state.projects.map((p) => (p.id === id ? { ...p, ...partial } : p)),
+        })),
+      removeProject: (id) => set((state) => ({ projects: state.projects.filter((p) => p.id !== id) })),
+    }),
+    {
+      name: 'tefereth-projects-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      // Only persist the projects array
+      partialize: (state) => ({ projects: state.projects }),
+    }
+  )
+);

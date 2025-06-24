@@ -1,12 +1,15 @@
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { Toaster } from './lib/toast';
+import { ErrorBoundary } from './lib/ErrorBoundary';
 import HomeScreen from "./screens/HomeScreen";
 import NewProjectScreen from "./screens/NewProjectScreen";
 import StoryboardScreen from "./screens/StoryboardScreen";
 import { colors } from './lib/theme';
+import { validateConfig } from './config/env';
 
 export type RootStackParamList = {
   Library: undefined;
@@ -38,13 +41,20 @@ function RootStack() {
 }
 
 export default function App() {
+  // COMPLETED: Initialize environment configuration validation (Phase 1 Task 2)
+  React.useEffect(() => {
+    validateConfig();
+  }, []);
+
   return (
-    <SafeAreaProvider style={styles.container}>
-      <Toaster />
-      <NavigationContainer>
-        <RootStack />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider style={styles.container}>
+        <Toaster />
+        <NavigationContainer>
+          <RootStack />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -53,5 +63,7 @@ const styles = StyleSheet.create({
     flex: 1,
     userSelect: "none",
     backgroundColor: colors.background,
+    // TODO: Add support for system theme detection
+    // NOTE: Consider adding theme context provider
   }
 });

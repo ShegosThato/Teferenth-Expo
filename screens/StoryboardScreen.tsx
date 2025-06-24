@@ -17,6 +17,8 @@ import { toast } from '../lib/toast';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../App';
 import { colors } from '../lib/theme';
+import { API_URLS, ENV } from '../config/env';
+import CachedImage from '../components/CachedImage';
 
 interface RouteParams {
   id: string;
@@ -26,7 +28,11 @@ type StoryboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamLi
 
 async function aiGenerateScenes(text: string): Promise<Scene[]> {
   try {
-    const res = await fetch('https://api.a0.dev/ai/llm', {
+    // COMPLETED: Moved API endpoint to environment variable (Phase 1 Task 2)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ENV.AI_TIMEOUT);
+    
+    const res = await fetch(API_URLS.AI_LLM, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -38,7 +44,10 @@ async function aiGenerateScenes(text: string): Promise<Scene[]> {
           { role: 'user', content: `Break this story into scenes: ${text}` },
         ],
       }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
     const json = await res.json();
     const completion: string = json.completion;
     const possibleJson = completion.match(/\[.*\]/s);
@@ -66,8 +75,17 @@ async function aiGenerateScenes(text: string): Promise<Scene[]> {
 
 async function generateSceneImage(prompt: string, style: string): Promise<string> {
   try {
+    // COMPLETED: Moved API endpoint to environment variable (Phase 1 Task 2)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ENV.IMAGE_TIMEOUT);
+    
     const stylePrompt = `${prompt}, ${style} style, high quality, professional`;
-    const response = await fetch(`https://api.a0.dev/assets/image?text=${encodeURIComponent(stylePrompt)}&aspect=16:9`);
+    const response = await fetch(
+      `${API_URLS.IMAGE_GENERATION}?text=${encodeURIComponent(stylePrompt)}&aspect=16:9`,
+      { signal: controller.signal }
+    );
+    
+    clearTimeout(timeoutId);
     return response.url;
   } catch (error) {
     console.error('Image generation failed:', error);
@@ -147,16 +165,34 @@ export default function StoryboardScreen() {
     );
   }
 
+  // COMPLETED: Added accessibility labels (Phase 1 Task 4)
   const renderScene = ({ item, index }: { item: Scene; index: number }) => (
-    <View style={styles.sceneCard}>
+    <View 
+      style={styles.sceneCard}
+      accessible={true}
+      accessibilityRole="text"
+      accessibilityLabel={`Scene ${index + 1}${item.image ? ' with image' : ''}`}
+      accessibilityValue={{ text: item.text }}
+    >
       <View style={styles.sceneHeader}>
         <Text style={styles.sceneIndex}>Scene {index + 1}</Text>
         {item.image && (
-          <Ionicons name="image" size={16} color="#10b981" />
+          <Ionicons 
+            name="image" 
+            size={16} 
+            color="#10b981"
+            accessibilityLabel="Scene has image"
+          />
         )}
       </View>
       {item.image && (
-        <Image source={{ uri: item.image }} style={styles.sceneImage} />
+        // COMPLETED: Implemented image caching (Phase 1 Task 3)
+        <CachedImage 
+          source={{ uri: item.image }} 
+          style={styles.sceneImage}
+          showLoadingIndicator={true}
+          accessibilityLabel={`Image for scene ${index + 1}: ${item.text.substring(0, 50)}...`}
+        />
       )}
       <Text style={styles.sceneText}>{item.text}</Text>
     </View>
@@ -182,6 +218,12 @@ export default function StoryboardScreen() {
               style={[styles.button, styles.primaryButton]} 
               onPress={handleGenerateStoryboard} 
               disabled={loading}
+              // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Generate storyboard"
+              accessibilityHint="Analyzes your story text and creates scene breakdown"
+              accessibilityState={{ disabled: loading }}
             >
               {loading ? (
                 <ActivityIndicator color={colors.primary} size="small" />
@@ -204,6 +246,12 @@ export default function StoryboardScreen() {
                 style={[styles.button, styles.secondaryButton]} 
                 onPress={handleGenerateImages}
                 disabled={generatingImages || project.scenes.every(s => s.image)}
+                // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={project.scenes.every(s => s.image) ? 'All images generated' : 'Generate images'}
+                accessibilityHint="Creates visual images for each scene in the storyboard"
+                accessibilityState={{ disabled: generatingImages || project.scenes.every(s => s.image) }}
               >
                 {generatingImages ? (
                   <ActivityIndicator color={colors.primary} size="small" />

@@ -39,7 +39,20 @@
     "extra": {
       "eas": {
         "projectId": "c1940d5c-efc5-424d-b146-7cfe706156c4"
-      }
+      },
+      "AI_API_BASE_URL": "https://api.a0.dev",
+      "AI_LLM_ENDPOINT": "/ai/llm",
+      "IMAGE_GENERATION_ENDPOINT": "/assets/image",
+      "MAX_FILE_SIZE_MB": "1",
+      "MAX_CONTENT_LENGTH": "50000",
+      "AI_TIMEOUT": "30000",
+      "IMAGE_TIMEOUT": "45000",
+      "ENABLE_OFFLINE_MODE": "false",
+      "ENABLE_ANALYTICS": "false",
+      "ENABLE_CRASH_REPORTING": "false",
+      "DEBUG_MODE": "false",
+      "LOG_LEVEL": "info",
+      "MOCK_API_RESPONSES": "false"
     },
     "owner": "shegosthato"
   }

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tefereth Scripts - Asset Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9fafb;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #7c3aed;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .asset-item {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+        .asset-item h3 {
+            margin: 0 0 10px 0;
+            color: #111827;
+        }
+        .asset-preview {
+            width: 100px;
+            height: 100px;
+            border: 1px solid #d1d5db;
+            margin: 10px 0;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .asset-preview img {
+            max-width: 90px;
+            max-height: 90px;
+        }
+        button {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #6d28d9;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .instructions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .download-all {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .download-all button {
+            background: #10b981;
+            font-size: 16px;
+            padding: 15px 30px;
+        }
+        .download-all button:hover {
+            background: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Tefereth Scripts Asset Converter</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ol>
+                <li>Click "Convert to PNG" for each asset below</li>
+                <li>Download the converted PNG files</li>
+                <li>Replace the SVG files in your assets/ directory</li>
+                <li>Test your app build with: <code>npm run ios/android</code></li>
+            </ol>
+        </div>
+
+        <div id="assets-container">
+            <!-- Assets will be loaded here -->
+        </div>
+
+        <div class="download-all">
+            <button id="download-all-btn" onclick="downloadAll()" disabled>
+                📦 Download All PNG Assets
+            </button>
+        </div>
+
+        <div class="instructions">
+            <h3>🚀 Next Steps After Download:</h3>
+            <ol>
+                <li>Save all PNG files to your <code>assets/</code> directory</li>
+                <li>Delete the SVG files (optional)</li>
+                <li>Run <code>npm run ios</code> or <code>npm run android</code> to test</li>
+                <li>Your app should now build successfully!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const assets = [
+            {
+                name: 'icon',
+                displayName: 'App Icon',
+                size: '1024x1024px',
+                description: 'Main application icon for iOS and Android',
+                svgContent: `<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="1024" height="1024" fill="#7c3aed" rx="102.4"/>
+                    <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="307" 
+                          font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="white">
+                        TS
+                    </text>
+                </svg>`
+            },
+            {
+                name: 'splash',
+                displayName: 'Splash Screen',
+                size: '1242x2436px',
+                description: 'Loading screen shown when app starts',
+                svgContent: `<svg width="1242" height="2436" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="1242" height="2436" fill="#f9fafb"/>
+                    <text x="50%" y="45%" font-family="Arial, sans-serif" font-size="72" 
+                          font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#7c3aed">
+                        Tefereth Scripts
+                    </text>
+                    <text x="50%" y="55%" font-family="Arial, sans-serif" font-size="32" 
+                          text-anchor="middle" dominant-baseline="central" fill="#6b7280">
+                        Video Storyboard Creator
+                    </text>
+                </svg>`
+            },
+            {
+                name: 'adaptive-icon',
+                displayName: 'Android Adaptive Icon',
+                size: '1024x1024px',
+                description: 'Android adaptive icon foreground',
+                svgContent: `<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="512" cy="512" r="358.4" fill="#7c3aed"/>
+                    <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="256" 
+                          font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="white">
+                        TS
+                    </text>
+                </svg>`
+            },
+            {
+                name: 'favicon',
+                displayName: 'Web Favicon',
+                size: '64x64px',
+                description: 'Browser tab icon for web version',
+                svgContent: `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="64" height="64" fill="#7c3aed" rx="9.6"/>
+                    <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="38" 
+                          font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="white">
+                        T
+                    </text>
+                </svg>`
+            }
+        ];
+
+        let convertedAssets = {};
+
+        function loadAssets() {
+            const container = document.getElementById('assets-container');
+            
+            assets.forEach(asset => {
+                const assetDiv = document.createElement('div');
+                assetDiv.className = 'asset-item';
+                assetDiv.innerHTML = `
+                    <h3>${asset.displayName}</h3>
+                    <p><strong>Size:</strong> ${asset.size}</p>
+                    <p><strong>Description:</strong> ${asset.description}</p>
+                    <div class="asset-preview" id="preview-${asset.name}">
+                        ${asset.svgContent}
+                    </div>
+                    <button onclick="convertToPNG('${asset.name}')" id="btn-${asset.name}">
+                        Convert to PNG
+                    </button>
+                    <span id="status-${asset.name}"></span>
+                `;
+                container.appendChild(assetDiv);
+            });
+        }
+
+        function convertToPNG(assetName) {
+            const asset = assets.find(a => a.name === assetName);
+            if (!asset) return;
+
+            const button = document.getElementById(`btn-${assetName}`);
+            const status = document.getElementById(`status-${assetName}`);
+            
+            button.disabled = true;
+            button.textContent = 'Converting...';
+            status.textContent = '';
+
+            // Create canvas and convert SVG to PNG
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size based on asset
+            if (assetName === 'splash') {
+                canvas.width = 1242;
+                canvas.height = 2436;
+            } else if (assetName === 'favicon') {
+                canvas.width = 64;
+                canvas.height = 64;
+            } else {
+                canvas.width = 1024;
+                canvas.height = 1024;
+            }
+
+            const img = new Image();
+            const svgBlob = new Blob([asset.svgContent], {type: 'image/svg+xml'});
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob(function(blob) {
+                    convertedAssets[assetName] = blob;
+                    
+                    button.textContent = 'Download PNG';
+                    button.disabled = false;
+                    button.onclick = () => downloadPNG(assetName);
+                    status.innerHTML = '<span class="success">✓ Converted!</span>';
+                    
+                    checkAllConverted();
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
+            };
+
+            img.src = url;
+        }
+
+        function downloadPNG(assetName) {
+            const blob = convertedAssets[assetName];
+            if (!blob) return;
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${assetName}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function checkAllConverted() {
+            const allConverted = assets.every(asset => convertedAssets[asset.name]);
+            document.getElementById('download-all-btn').disabled = !allConverted;
+        }
+
+        function downloadAll() {
+            assets.forEach(asset => {
+                if (convertedAssets[asset.name]) {
+                    downloadPNG(asset.name);
+                }
+            });
+        }
+
+        // Load assets when page loads
+        window.onload = loadAssets;
+    </script>
+</body>
+</html>

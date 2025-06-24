@@ -17,6 +17,7 @@ import { toast } from '../lib/toast';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../App';
 import { colors } from '../lib/theme';
+import { FILE_LIMITS } from '../config/env';
 
 type NewProjectScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewProject'>;
 
@@ -70,6 +71,14 @@ export default function NewProjectScreen() {
         return; // Do not attempt to read content
       }
 
+      // COMPLETED: Moved file size limits to environment config (Phase 1 Task 2)
+      // Check file size using configurable limit
+      const fileSize = result.assets?.[0]?.size;
+      if (fileSize && fileSize > FILE_LIMITS.MAX_FILE_SIZE) {
+        toast.error('File is too large. Please select a file smaller than 1MB.');
+        return;
+      }
+
       // Read content for text-based files
       if (Platform.OS === 'web') {
         const file = result.assets?.[0]?.file;
@@ -77,24 +86,42 @@ export default function NewProjectScreen() {
           const reader = new FileReader();
           reader.onload = (e) => {
             if (e.target?.result) {
-              setSourceText(e.target.result as string);
+              const content = e.target.result as string;
+              // COMPLETED: Moved content length limits to environment config (Phase 1 Task 2)
+              if (content.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
+                toast.error('File content is too long. Please select a smaller file or copy/paste the relevant text.');
+                return;
+              }
+              setSourceText(content);
               toast.success(`Successfully loaded ${fileName}!`);
             }
           };
           reader.onerror = (e) => {
             console.error('FileReader error', e);
-            toast.error('Failed to read file content.');
+            toast.error('Failed to read file content. Please try again or copy/paste the text manually.');
           };
           reader.readAsText(file);
         } else {
-          toast.error('Could not get file content for web.');
+          toast.error('Could not access file content for web platform.');
         }
       } else {
         // For native (iOS, Android)
-        const response = await fetch(fileUri);
-        const text = await response.text();
-        setSourceText(text);
-        toast.success(`Successfully loaded ${fileName}!`);
+        try {
+          const response = await fetch(fileUri);
+          if (!response.ok) {
+            throw new Error(`Failed to read file: ${response.status} ${response.statusText}`);
+          }
+          const text = await response.text();
+          if (text.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
+            toast.error('File content is too long. Please select a smaller file or copy/paste the relevant text.');
+            return;
+          }
+          setSourceText(text);
+          toast.success(`Successfully loaded ${fileName}!`);
+        } catch (fetchError) {
+          console.error('Failed to fetch file content:', fetchError);
+          toast.error('Failed to read file content. Please try again or copy/paste the text manually.');
+        }
       }
     } catch (err) {
       console.error('Document picking failed', err);
@@ -103,25 +130,61 @@ export default function NewProjectScreen() {
   };
 
   const createProject = () => {
-    if (!title.trim() || !sourceText.trim()) {
-      toast.error('Please enter a title and story text');
+    // Input validation
+    const trimmedTitle = title.trim();
+    const trimmedSourceText = sourceText.trim();
+    
+    if (!trimmedTitle) {
+      toast.error('Please enter a project title');
+      return;
+    }
+    
+    if (trimmedTitle.length < 3) {
+      toast.error('Project title must be at least 3 characters long');
+      return;
+    }
+    
+    if (trimmedTitle.length > 100) {
+      toast.error('Project title must be less than 100 characters');
+      return;
+    }
+    
+    if (!trimmedSourceText) {
+      toast.error('Please enter story content');
+      return;
+    }
+    
+    if (trimmedSourceText.length < 50) {
+      toast.error('Story content must be at least 50 characters long');
+      return;
+    }
+    
+    if (trimmedSourceText.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
+      toast.error(`Story content is too long. Please keep it under ${FILE_LIMITS.MAX_CONTENT_LENGTH.toLocaleString()} characters`);
       return;
     }
 
-    const newProject: Project = {
-      id: `${Date.now()}`,
-      title: title.trim(),
-      sourceText: sourceText.trim(),
-      style: style.trim() || 'Cinematic',
-      scenes: [],
-      status: 'draft',
-      progress: 0,
-      createdAt: Date.now(),
-    };
+    try {
+      const newProject: Project = {
+        // TODO: Use proper UUID library for better ID generation
+        // NOTE: Current ID generation could have collisions in high-frequency usage
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // More unique ID
+        title: trimmedTitle,
+        sourceText: trimmedSourceText,
+        style: style.trim() || 'Cinematic',
+        scenes: [],
+        status: 'draft',
+        progress: 0,
+        createdAt: Date.now(),
+      };
 
-    addProject(newProject);
-    toast.success('Project created successfully!');
-    navigation.navigate('Storyboard', { id: newProject.id });
+      addProject(newProject);
+      toast.success('Project created successfully!');
+      navigation.navigate('Storyboard', { id: newProject.id });
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      toast.error('Failed to create project. Please try again.');
+    }
   };
 
   return (
@@ -136,6 +199,10 @@ export default function NewProjectScreen() {
           onChangeText={setTitle}
           placeholder="Enter your project title"
           placeholderTextColor="#94a3b8"
+          // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+          accessible={true}
+          accessibilityLabel="Project title"
+          accessibilityHint="Enter a name for your video storyboard project"
         />
       </View>
 
@@ -152,10 +219,19 @@ export default function NewProjectScreen() {
           multiline
           numberOfLines={6}
           textAlignVertical="top"
+          // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+          accessible={true}
+          accessibilityLabel="Story content"
+          accessibilityHint="Enter or paste the text content that will be converted into a storyboard"
         />
         <Pressable
           style={styles.uploadButton}
           onPress={pickDocument}
+          // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Upload document"
+          accessibilityHint="Select a text file, markdown, or document to import story content"
         >
           <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
           <Text style={styles.uploadButtonText}>Upload Document</Text>
@@ -176,6 +252,12 @@ export default function NewProjectScreen() {
                 { borderColor: styleOption.color },
               ]}
               onPress={() => setStyle(styleOption.name)}
+              // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+              accessible={true}
+              accessibilityRole="radio"
+              accessibilityLabel={`${styleOption.name} visual style`}
+              accessibilityHint={`Select ${styleOption.name} as the visual style for generated images`}
+              accessibilityState={{ selected: style === styleOption.name }}
             >
               <Ionicons 
                 name={styleOption.icon as any} 
@@ -196,9 +278,15 @@ export default function NewProjectScreen() {
       </View>
 
       <Pressable 
-        style={[styles.button, (!title.trim() || !sourceText.trim()) && styles.buttonDisabled]} 
+        style={[styles.button, (!title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50) && styles.buttonDisabled]} 
         onPress={createProject}
-        disabled={!title.trim() || !sourceText.trim()}
+        disabled={!title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50}
+        // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel="Create project"
+        accessibilityHint="Creates a new storyboard project with the entered title and content"
+        accessibilityState={{ disabled: !title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50 }}
       >
         <Ionicons name="add-circle-outline" size={20} color="white" />
         <Text style={styles.buttonText}>Create Project</Text>

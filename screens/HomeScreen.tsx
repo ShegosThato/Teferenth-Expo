@@ -20,6 +20,8 @@ export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const projects = useStore((s) => s.projects);
 
+  // TODO: Replace 'any' type with proper interface
+  // NOTE: Should use proper TypeScript typing for better type safety
   const renderItem = ({ item }: any) => {
     const getStatusColor = (status: string) => statusColors[status] || colors.mutedText;
 
@@ -27,6 +29,11 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.card}
         onPress={() => navigation.navigate('Storyboard', { id: item.id })}
+        // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`Open project ${item.title}`}
+        accessibilityHint={`Opens the storyboard for ${item.title} project with ${item.scenes.length} scenes`}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
@@ -71,6 +78,11 @@ export default function HomeScreen() {
       <Pressable
         style={styles.fab}
         onPress={() => navigation.navigate('NewProject')}
+        // COMPLETED: Added accessibility labels (Phase 1 Task 4)
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel="Create new project"
+        accessibilityHint="Opens the new project creation screen"
       >
         <Ionicons name="add" size={32} color="white" />
       </Pressable>

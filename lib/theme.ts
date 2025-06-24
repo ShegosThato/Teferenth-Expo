@@ -1,3 +1,5 @@
+// TODO: Add dark mode support
+// NOTE: Consider using a theme provider for dynamic theming
 export const colors = {
   primary: '#7c3aed', // indigo-600
   background: '#f9fafb',
