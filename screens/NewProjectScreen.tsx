@@ -12,12 +12,15 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useStore, Project } from '../lib/store';
+import { useDatabase } from '../db/DatabaseContext';
+import { createProject } from '../db/actions';
 import { toast } from '../lib/toast';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../App';
 import { colors } from '../lib/theme';
 import { FILE_LIMITS } from '../config/env';
+import { handleError, safeAsync } from '../lib/errorHandling';
+import { InlineLoading } from '../components/LoadingStates';
 
 type NewProjectScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewProject'>;
 
@@ -32,14 +35,20 @@ const VISUAL_STYLES = [
 
 export default function NewProjectScreen() {
   const navigation = useNavigation<NewProjectScreenNavigationProp>();
-  const addProject = useStore((s) => s.addProject);
+  const database = useDatabase();
 
   const [title, setTitle] = useState('');
   const [sourceText, setSourceText] = useState('');
   const [style, setStyle] = useState('Cinematic');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const pickDocument = async () => {
-    try {
+    if (isUploading) return;
+    
+    setIsUploading(true);
+    
+    const result = await safeAsync(async () => {
       const result = await DocumentPicker.getDocumentAsync({
         type: [
           'text/plain',
@@ -52,139 +61,138 @@ export default function NewProjectScreen() {
       });
 
       if (result.canceled) {
-        console.log('Document picking cancelled.');
-        return;
+        return null;
       }
 
       const fileUri = result.assets?.[0]?.uri;
       const fileType = result.assets?.[0]?.mimeType;
       const fileName = result.assets?.[0]?.name;
+      const fileSize = result.assets?.[0]?.size;
 
       if (!fileUri) {
-        toast.error('Could not get file URI.');
-        return;
+        throw new Error('Could not get file URI');
       }
 
-      // Special handling for PDF/DOCX (cannot directly read content easily client-side)
-      if (fileType === 'application/pdf' || fileType === 'application/msword' || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        toast.message(`Selected ${fileName}. Direct text extraction from ${fileType.split('/')[1]?.toUpperCase()} is not supported. Please copy and paste the text manually.`);
-        return; // Do not attempt to read content
+      // Validate file type
+      const supportedTypes = ['text/plain', 'text/markdown'];
+      const unsupportedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      
+      if (unsupportedTypes.includes(fileType || '')) {
+        toast.info(
+          `Selected ${fileName}. Direct text extraction from ${fileType?.split('/')[1]?.toUpperCase()} is not supported.`,
+          'Please copy and paste the text manually'
+        );
+        return null;
       }
 
-      // COMPLETED: Moved file size limits to environment config (Phase 1 Task 2)
-      // Check file size using configurable limit
-      const fileSize = result.assets?.[0]?.size;
+      // Validate file size
       if (fileSize && fileSize > FILE_LIMITS.MAX_FILE_SIZE) {
-        toast.error('File is too large. Please select a file smaller than 1MB.');
-        return;
+        throw new Error(`File is too large. Please select a file smaller than ${FILE_LIMITS.MAX_FILE_SIZE / (1024 * 1024)}MB`);
       }
 
       // Read content for text-based files
+      let content: string;
+      
       if (Platform.OS === 'web') {
         const file = result.assets?.[0]?.file;
-        if (file) {
+        if (!file) {
+          throw new Error('Could not access file content for web platform');
+        }
+        
+        content = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (e) => {
             if (e.target?.result) {
-              const content = e.target.result as string;
-              // COMPLETED: Moved content length limits to environment config (Phase 1 Task 2)
-              if (content.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
-                toast.error('File content is too long. Please select a smaller file or copy/paste the relevant text.');
-                return;
-              }
-              setSourceText(content);
-              toast.success(`Successfully loaded ${fileName}!`);
+              resolve(e.target.result as string);
+            } else {
+              reject(new Error('Failed to read file content'));
             }
           };
-          reader.onerror = (e) => {
-            console.error('FileReader error', e);
-            toast.error('Failed to read file content. Please try again or copy/paste the text manually.');
-          };
+          reader.onerror = () => reject(new Error('FileReader error'));
           reader.readAsText(file);
-        } else {
-          toast.error('Could not access file content for web platform.');
-        }
+        });
       } else {
         // For native (iOS, Android)
-        try {
-          const response = await fetch(fileUri);
-          if (!response.ok) {
-            throw new Error(`Failed to read file: ${response.status} ${response.statusText}`);
-          }
-          const text = await response.text();
-          if (text.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
-            toast.error('File content is too long. Please select a smaller file or copy/paste the relevant text.');
-            return;
-          }
-          setSourceText(text);
-          toast.success(`Successfully loaded ${fileName}!`);
-        } catch (fetchError) {
-          console.error('Failed to fetch file content:', fetchError);
-          toast.error('Failed to read file content. Please try again or copy/paste the text manually.');
+        const response = await fetch(fileUri);
+        if (!response.ok) {
+          throw new Error(`Failed to read file: ${response.status} ${response.statusText}`);
         }
+        content = await response.text();
       }
-    } catch (err) {
-      console.error('Document picking failed', err);
-      toast.error('Failed to pick document.');
+
+      // Validate content length
+      if (content.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
+        throw new Error(`File content is too long. Please keep it under ${FILE_LIMITS.MAX_CONTENT_LENGTH.toLocaleString()} characters`);
+      }
+
+      return { content, fileName };
+    }, undefined, {
+      operation: 'pickDocument',
+      fileType: result?.assets?.[0]?.mimeType,
+      fileSize: result?.assets?.[0]?.size
+    });
+
+    if (result?.content) {
+      setSourceText(result.content);
+      toast.success(`Successfully loaded ${result.fileName}!`);
     }
+
+    setIsUploading(false);
   };
 
-  const createProject = () => {
+  const handleCreateProject = async () => {
+    if (isCreating) return;
+    
     // Input validation
     const trimmedTitle = title.trim();
     const trimmedSourceText = sourceText.trim();
     
+    const validationErrors: string[] = [];
+    
     if (!trimmedTitle) {
-      toast.error('Please enter a project title');
-      return;
-    }
-    
-    if (trimmedTitle.length < 3) {
-      toast.error('Project title must be at least 3 characters long');
-      return;
-    }
-    
-    if (trimmedTitle.length > 100) {
-      toast.error('Project title must be less than 100 characters');
-      return;
+      validationErrors.push('Please enter a project title');
+    } else if (trimmedTitle.length < 3) {
+      validationErrors.push('Project title must be at least 3 characters long');
+    } else if (trimmedTitle.length > 100) {
+      validationErrors.push('Project title must be less than 100 characters');
     }
     
     if (!trimmedSourceText) {
-      toast.error('Please enter story content');
-      return;
+      validationErrors.push('Please enter story content');
+    } else if (trimmedSourceText.length < 50) {
+      validationErrors.push('Story content must be at least 50 characters long');
+    } else if (trimmedSourceText.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
+      validationErrors.push(`Story content is too long. Please keep it under ${FILE_LIMITS.MAX_CONTENT_LENGTH.toLocaleString()} characters`);
     }
-    
-    if (trimmedSourceText.length < 50) {
-      toast.error('Story content must be at least 50 characters long');
-      return;
-    }
-    
-    if (trimmedSourceText.length > FILE_LIMITS.MAX_CONTENT_LENGTH) {
-      toast.error(`Story content is too long. Please keep it under ${FILE_LIMITS.MAX_CONTENT_LENGTH.toLocaleString()} characters`);
+
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors[0]);
       return;
     }
 
-    try {
-      const newProject: Project = {
-        // TODO: Use proper UUID library for better ID generation
-        // NOTE: Current ID generation could have collisions in high-frequency usage
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // More unique ID
+    setIsCreating(true);
+
+    const result = await safeAsync(async () => {
+      // Use the database action to create the project
+      const newProject = await createProject(database, {
         title: trimmedTitle,
         sourceText: trimmedSourceText,
         style: style.trim() || 'Cinematic',
-        scenes: [],
-        status: 'draft',
-        progress: 0,
-        createdAt: Date.now(),
-      };
+      });
+      return newProject;
+    }, undefined, {
+      operation: 'createProject',
+      titleLength: trimmedTitle.length,
+      contentLength: trimmedSourceText.length,
+      style
+    });
 
-      addProject(newProject);
+    if (result) {
       toast.success('Project created successfully!');
-      navigation.navigate('Storyboard', { id: newProject.id });
-    } catch (error) {
-      console.error('Failed to create project:', error);
-      toast.error('Failed to create project. Please try again.');
+      navigation.navigate('Storyboard', { id: result.id });
     }
+
+    setIsCreating(false);
   };
 
   return (
@@ -225,16 +233,24 @@ export default function NewProjectScreen() {
           accessibilityHint="Enter or paste the text content that will be converted into a storyboard"
         />
         <Pressable
-          style={styles.uploadButton}
+          style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
           onPress={pickDocument}
+          disabled={isUploading}
           // COMPLETED: Added accessibility labels (Phase 1 Task 4)
           accessible={true}
           accessibilityRole="button"
           accessibilityLabel="Upload document"
           accessibilityHint="Select a text file, markdown, or document to import story content"
+          accessibilityState={{ disabled: isUploading }}
         >
-          <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
-          <Text style={styles.uploadButtonText}>Upload Document</Text>
+          <InlineLoading
+            loading={isUploading}
+            size="small"
+            color={colors.primary}
+          >
+            <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
+            <Text style={styles.uploadButtonText}>Upload Document</Text>
+          </InlineLoading>
         </Pressable>
       </View>
 
@@ -278,18 +294,28 @@ export default function NewProjectScreen() {
       </View>
 
       <Pressable 
-        style={[styles.button, (!title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50) && styles.buttonDisabled]} 
-        onPress={createProject}
-        disabled={!title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50}
+        style={[
+          styles.button, 
+          (isCreating || !title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50) && styles.buttonDisabled
+        ]} 
+        onPress={handleCreateProject}
+        disabled={isCreating || !title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50}
         // COMPLETED: Added accessibility labels (Phase 1 Task 4)
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel="Create project"
         accessibilityHint="Creates a new storyboard project with the entered title and content"
-        accessibilityState={{ disabled: !title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50 }}
+        accessibilityState={{ disabled: isCreating || !title.trim() || !sourceText.trim() || title.trim().length < 3 || sourceText.trim().length < 50 }}
       >
-        <Ionicons name="add-circle-outline" size={20} color="white" />
-        <Text style={styles.buttonText}>Create Project</Text>
+        <InlineLoading
+          loading={isCreating}
+          loadingText="Creating..."
+          size="small"
+          color="white"
+        >
+          <Ionicons name="add-circle-outline" size={20} color="white" />
+          <Text style={styles.buttonText}>Create Project</Text>
+        </InlineLoading>
       </Pressable>
     </ScrollView>
   );
@@ -391,5 +417,8 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
     fontSize: 16,
+  },
+  uploadButtonDisabled: {
+    opacity: 0.6,
   },
 });
