@@ -1,122 +1,188 @@
-import React from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useStore } from '../lib/store';
+import { withObservables } from '@nozbe/with-observables';
+import { Q } from '@nozbe/watermelondb';
+import { useDatabase } from '../db/DatabaseContext';
+import { Project } from '../db/models';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../App';
-import { colors, statusColors } from '../lib/theme';
+import { colors, statusColors, useTheme } from '../lib/theme';
+import { OptimizedFlatList } from '../components/OptimizedFlatList';
+import { performanceMonitor } from '../lib/performance';
+import { ProjectCardSkeleton } from '../components/LoadingStates';
+import { EnhancedCard, FloatingActionButton, ThemeToggle } from '../components/EnhancedUI';
+import { AnimationComponents } from '../lib/animations';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Library'>;
 
-export default function HomeScreen() {
-  const navigation = useNavigation<HomeScreenNavigationProp>();
-  const projects = useStore((s) => s.projects);
+interface HomeScreenProps {
+  projects: Project[];
+}
 
-  // TODO: Replace 'any' type with proper interface
-  // NOTE: Should use proper TypeScript typing for better type safety
-  const renderItem = ({ item }: any) => {
-    const getStatusColor = (status: string) => statusColors[status] || colors.mutedText;
+function HomeScreen({ projects }: HomeScreenProps) {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { theme } = useTheme();
+
+  // Performance monitoring
+  useEffect(() => {
+    performanceMonitor.trackScreenLoad('HomeScreen');
+  }, []);
+
+  // Enhanced render item with animations and theming
+  const renderItem = useCallback(({ item, index }: { item: any; index: number }) => {
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'draft': return theme.colors.statusDraft;
+        case 'storyboard': return theme.colors.statusStoryboard;
+        case 'rendering': return theme.colors.statusRendering;
+        case 'complete': return theme.colors.statusComplete;
+        default: return theme.colors.textMuted;
+      }
+    };
 
     return (
-      <TouchableOpacity
-        style={styles.card}
+      <EnhancedCard
+        pressable
         onPress={() => navigation.navigate('Storyboard', { id: item.id })}
-        // COMPLETED: Added accessibility labels (Phase 1 Task 4)
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel={`Open project ${item.title}`}
-        accessibilityHint={`Opens the storyboard for ${item.title} project with ${item.scenes.length} scenes`}
+        style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+        animated={true}
+        elevation="sm"
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.style}>Style: {item.style}</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>{item.title}</Text>
+            <Text style={[styles.style, { color: theme.colors.textMuted }]}>Style: {item.style}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
             <Text style={styles.statusText}>{item.status}</Text>
           </View>
         </View>
         {item.status === 'rendering' && (
-          <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.border }]}>
             <View
               style={[
                 styles.progressBar,
-                { width: `${item.progress * 100}%` },
+                { 
+                  width: `${item.progress * 100}%`,
+                  backgroundColor: theme.colors.warning,
+                },
               ]}
             />
           </View>
         )}
-        <Text style={styles.scenes}>{item.scenes.length} scenes</Text>
-      </TouchableOpacity>
+        <Text style={[styles.scenes, { color: theme.colors.textMuted }]}>
+          {item.scenes?.length || 0} scenes
+        </Text>
+      </EnhancedCard>
     );
-  };
+  }, [theme, navigation]);
+
+  // Empty state component with theme support
+  const EmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="film-outline" size={64} color={theme.colors.textMuted} />
+      <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No projects yet</Text>
+      <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
+        Tap the + button to create your first video story
+      </Text>
+    </View>
+  );
+
+  // Loading component
+  const LoadingState = () => (
+    <View style={{ padding: 16 }}>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <ProjectCardSkeleton key={index} />
+      ))}
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      <FlatList
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Header with settings button */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Projects</Text>
+        <View style={styles.headerActions}>
+          <EnhancedButton
+            title=""
+            icon="settings-outline"
+            variant="ghost"
+            size="sm"
+            onPress={() => navigation.navigate('Settings')}
+            style={{ marginRight: 8 }}
+          />
+          <ThemeToggle />
+        </View>
+      </View>
+
+      <OptimizedFlatList
         data={projects}
-        keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Ionicons name="film-outline" size={64} color="#cbd5e1" />
-            <Text style={styles.emptyTitle}>No projects yet</Text>
-            <Text style={styles.emptySubtitle}>Tap the + button to create your first video story</Text>
-          </View>
-        )}
+        keyExtractor={(item) => item.id}
+        itemHeight={140} // Approximate height of enhanced project cards
+        enableVirtualization={true}
+        enableLazyLoading={true}
+        enablePerformanceMonitoring={true}
+        emptyComponent={EmptyState}
+        loadingComponent={LoadingState}
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        initialNumToRender={8}
+        windowSize={10}
       />
-      <Pressable
-        style={styles.fab}
+      
+      {/* Enhanced floating action button */}
+      <FloatingActionButton
+        icon="add"
         onPress={() => navigation.navigate('NewProject')}
-        // COMPLETED: Added accessibility labels (Phase 1 Task 4)
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel="Create new project"
-        accessibilityHint="Opens the new project creation screen"
-      >
-        <Ionicons name="add" size={32} color="white" />
-      </Pressable>
+        position="bottom-right"
+        size="md"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
-    flex: 1, 
-    backgroundColor: colors.background
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 16,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   title: { 
     fontSize: 18, 
     fontWeight: 'bold',
-    color: colors.text,
     marginBottom: 4,
   },
   style: {
     fontSize: 14,
-    color: colors.mutedText,
     marginBottom: 8,
   },
   statusBadge: {
@@ -133,19 +199,16 @@ const styles = StyleSheet.create({
   },
   scenes: {
     fontSize: 12,
-    color: colors.mutedText,
     marginTop: 8,
   },
   progressBarContainer: {
     height: 6,
-    backgroundColor: colors.border,
     borderRadius: 3,
     overflow: 'hidden',
     marginTop: 12,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: colors.warning,
     borderRadius: 3,
   },
   emptyState: {
@@ -157,30 +220,26 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.mutedText,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#94a3b8',
     textAlign: 'center',
     paddingHorizontal: 32,
   },
-  fab: {
-    position: 'absolute',
-    right: 24,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
 });
+
+// The 'enhance' HOC subscribes to database changes
+const enhance = withObservables([], () => {
+  const database = useDatabase();
+  return {
+    // This query is now an observable.
+    // Any change in the 'projects' table will re-render the component.
+    projects: database.get<Project>('projects').query(
+      Q.sortBy('created_at', Q.desc)
+    ).observe(),
+  };
+});
+
+export default enhance(HomeScreen);
