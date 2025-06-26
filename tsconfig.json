@@ -1,7 +1,29 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    // Enhanced strict mode settings
     "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    
+    // Additional safety checks
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    
+    // Module resolution and compilation
     "allowJs": true,
     "esModuleInterop": true,
     "jsx": "react-native",
@@ -12,17 +34,18 @@
     "skipLibCheck": true,
     "target": "ESNext",
     "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "strictNullChecks": true,
+    
+    // Path mapping
     "baseUrl": ".",
     "paths": {
-      "*": ["*"]
+      "@/*": ["./*"],
+      "@types/*": ["./types/*"],
+      "@components/*": ["./components/*"],
+      "@screens/*": ["./screens/*"],
+      "@services/*": ["./services/*"],
+      "@stores/*": ["./stores/*"],
+      "@lib/*": ["./lib/*"],
+      "@config/*": ["./config/*"]
     }
   },
   "include": [

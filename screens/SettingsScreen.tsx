@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/theme';
-import { useStore, AppSettings, BackupData } from '../lib/store';
+import { useSettingsStore, AppSettings, BackupData } from '../stores';
 import { DataManager, SyncManager, AutoSaveManager } from '../lib/dataManagement';
 import { EnhancedButton, EnhancedCard, ThemeToggle } from '../components/EnhancedUI';
 import { toast } from '../lib/toast';
@@ -31,7 +31,7 @@ import { performanceMonitor } from '../lib/performance';
 
 export default function SettingsScreen() {
   const { theme } = useTheme();
-  const { settings, updateSettings, createBackup, listBackups, restoreBackup, exportData, getProjectStats, getDataSize } = useStore();
+  const { settings, updateSettings, createBackup, listBackups, restoreBackup, exportData, getProjectStats, getDataSize } = useSettingsStore();
   
   const [loading, setLoading] = useState(false);
   const [backups, setBackups] = useState<BackupData[]>([]);
@@ -75,7 +75,7 @@ export default function SettingsScreen() {
       AutoSaveManager.start(
         settings.autoSaveInterval * 60 * 1000,
         async () => {
-          await useStore.getState().saveNow();
+          await useSettingsStore.getState().saveNow();
         }
       );
     } else {
@@ -173,7 +173,7 @@ export default function SettingsScreen() {
               style: 'destructive',
               onPress: async () => {
                 try {
-                  await useStore.getState().importData(importData);
+                  await useSettingsStore.getState().importData(importData);
                   toast.success('Data imported successfully');
                   await loadData();
                 } catch (error) {

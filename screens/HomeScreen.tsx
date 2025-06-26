@@ -18,7 +18,7 @@ import { colors, statusColors, useTheme } from '../lib/theme';
 import { OptimizedFlatList } from '../components/OptimizedFlatList';
 import { performanceMonitor } from '../lib/performance';
 import { ProjectCardSkeleton } from '../components/LoadingStates';
-import { EnhancedCard, FloatingActionButton, ThemeToggle } from '../components/EnhancedUI';
+import { EnhancedCard, FloatingActionButton, ThemeToggle, EnhancedButton } from '../components/EnhancedUI';
 import { AnimationComponents } from '../lib/animations';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Library'>;

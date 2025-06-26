@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { Toaster } from './lib/toast';
 import { ErrorBoundary } from './lib/ErrorBoundary';
@@ -10,9 +10,12 @@ import NewProjectScreen from "./screens/NewProjectScreen";
 import StoryboardScreen from "./screens/StoryboardScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import { colors, ThemeProvider } from './lib/theme';
+import { NotificationProvider } from './components/EnhancedNotifications';
+import { LazyOnboardingSystem, LazyComponentWrapper } from './components/LazyComponents';
+import { uxManager } from './lib/enhancedUX';
 import { validateConfig } from './config/env';
-import { PerformanceMonitorToggle } from './components/PerformanceDashboard';
-import { performanceMonitor } from './lib/performance';
+import { PerformanceToggle } from './components/PerformanceDashboard';
+import { enhancedPerformanceMonitor } from './lib/enhancedPerformance';
 import { DatabaseProvider } from './db/DatabaseContext';
 import { SyncManager } from './components/SyncManager';
 import { MigrationManager } from './components/MigrationManager';
@@ -49,29 +52,53 @@ function RootStack() {
 }
 
 export default function App() {
-  // COMPLETED: Initialize environment configuration validation (Phase 1 Task 2)
+  // Initialize all enhanced systems
   React.useEffect(() => {
+    // Environment configuration validation
     validateConfig();
     
-    // Initialize performance monitoring (Phase 2 Task 2)
-    performanceMonitor.trackScreenLoad('App');
+    // Initialize enhanced performance monitoring
+    enhancedPerformanceMonitor.startMonitoring();
+    enhancedPerformanceMonitor.trackScreenLoad('App');
+    
+    // Track app launch for UX adaptation
+    uxManager.trackInteraction('app_launch', {
+      timestamp: Date.now(),
+      platform: Platform.OS,
+    });
   }, []);
 
   return (
     <DatabaseProvider>
       <MigrationManager>
         <ThemeProvider>
-          <ErrorBoundary>
-            <SafeAreaProvider style={styles.container}>
-              <Toaster />
-              <SyncManager />
-              <NavigationContainer>
-                <RootStack />
-              </NavigationContainer>
-              {/* Performance monitoring toggle for development */}
-              <PerformanceMonitorToggle />
-            </SafeAreaProvider>
-          </ErrorBoundary>
+          <NotificationProvider>
+            <ErrorBoundary>
+              <SafeAreaProvider style={styles.container}>
+                <Toaster />
+                <SyncManager />
+                <NavigationContainer>
+                  <RootStack />
+                </NavigationContainer>
+                
+                {/* Enhanced UX Components */}
+                <LazyComponentWrapper>
+                  <LazyOnboardingSystem
+                    flows={[]} // Will be loaded dynamically
+                    onComplete={(flowId) => {
+                      uxManager.trackInteraction('onboarding_completed', { flowId });
+                    }}
+                    onSkip={(flowId) => {
+                      uxManager.trackInteraction('onboarding_skipped', { flowId });
+                    }}
+                  />
+                </LazyComponentWrapper>
+                
+                {/* Performance monitoring toggle for development */}
+                <PerformanceToggle />
+              </SafeAreaProvider>
+            </ErrorBoundary>
+          </NotificationProvider>
         </ThemeProvider>
       </MigrationManager>
     </DatabaseProvider>

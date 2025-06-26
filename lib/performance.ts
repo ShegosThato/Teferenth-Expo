@@ -119,7 +119,7 @@ class PerformanceMonitor {
     }
   }
 
-  private reportPerformanceIssue(event: PerformanceEvent, data: any) {
+  private reportPerformanceIssue(event: PerformanceEvent, data: Record<string, unknown>) {
     if (ENV.DEBUG_MODE) {
       console.warn(`Performance Issue - ${event}:`, data);
     }
@@ -208,7 +208,7 @@ class PerformanceMonitor {
         acc.renderCount = (acc.renderCount || 0) + 1;
       }
       return acc;
-    }, {} as any);
+    }, {} as Record<string, number>);
 
     return {
       memoryUsage: totals.memoryCount ? {
@@ -238,7 +238,7 @@ export const performanceMonitor = new PerformanceMonitor();
 // Performance optimization utilities
 export class PerformanceOptimizer {
   // Debounce function for performance
-  static debounce<T extends (...args: any[]) => any>(
+  static debounce<T extends (...args: unknown[]) => unknown>(
     func: T,
     wait: number
   ): (...args: Parameters<T>) => void {
@@ -250,7 +250,7 @@ export class PerformanceOptimizer {
   }
 
   // Throttle function for performance
-  static throttle<T extends (...args: any[]) => any>(
+  static throttle<T extends (...args: unknown[]) => unknown>(
     func: T,
     limit: number
   ): (...args: Parameters<T>) => void {
@@ -265,9 +265,9 @@ export class PerformanceOptimizer {
   }
 
   // Memoization for expensive calculations
-  static memoize<T extends (...args: any[]) => any>(fn: T): T {
+  static memoize<T extends (...args: unknown[]) => unknown>(fn: T): T {
     const cache = new Map();
-    return ((...args: any[]) => {
+    return ((...args: unknown[]) => {
       const key = JSON.stringify(args);
       if (cache.has(key)) {
         return cache.get(key);
@@ -341,10 +341,10 @@ export function usePerformanceMonitor() {
 
 // Performance measurement decorator
 export function measurePerformance(name: string) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = function (...args: any[]) {
+    descriptor.value = function (...args: unknown[]) {
       return performanceMonitor.measureRenderTime(
         `${target.constructor.name}.${propertyKey}`,
         () => originalMethod.apply(this, args)
@@ -357,10 +357,10 @@ export function measurePerformance(name: string) {
 
 // Memory management utilities
 export class MemoryManager {
-  private static imageCache = new Map<string, any>();
+  private static imageCache = new Map<string, unknown>();
   private static maxCacheSize = 50; // Maximum cached items
 
-  static cacheImage(key: string, image: any) {
+  static cacheImage(key: string, image: unknown) {
     if (this.imageCache.size >= this.maxCacheSize) {
       // Remove oldest entry
       const firstKey = this.imageCache.keys().next().value;
