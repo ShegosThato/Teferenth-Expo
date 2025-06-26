@@ -5,10 +5,13 @@ import { StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { Toaster } from './lib/toast';
 import { ErrorBoundary } from './lib/ErrorBoundary';
-import HomeScreen from "./screens/HomeScreen";
-import NewProjectScreen from "./screens/NewProjectScreen";
-import StoryboardScreen from "./screens/StoryboardScreen";
-import SettingsScreen from "./screens/SettingsScreen";
+import { 
+  HomeScreenLazy as HomeScreen,
+  NewProjectScreenLazy as NewProjectScreen,
+  StoryboardScreenLazy as StoryboardScreen,
+  SettingsScreenLazy as SettingsScreen,
+  ScreenPreloader
+} from "./components/LazyScreens";
 import { colors, ThemeProvider } from './lib/theme';
 import { NotificationProvider } from './components/EnhancedNotifications';
 import { LazyOnboardingSystem, LazyComponentWrapper } from './components/LazyComponents';
@@ -66,6 +69,13 @@ export default function App() {
       timestamp: Date.now(),
       platform: Platform.OS,
     });
+
+    // Preload screens after initial render
+    const preloadTimer = setTimeout(() => {
+      ScreenPreloader.preloadAllScreens();
+    }, 2000); // Preload after 2 seconds to avoid blocking initial load
+
+    return () => clearTimeout(preloadTimer);
   }, []);
 
   return (
