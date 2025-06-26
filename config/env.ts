@@ -50,9 +50,10 @@ export const ENV = {
   AI_LLM_ENDPOINT: getEnvVar('AI_LLM_ENDPOINT', DEV_CONFIG.AI_LLM_ENDPOINT),
   IMAGE_GENERATION_ENDPOINT: getEnvVar('IMAGE_GENERATION_ENDPOINT', DEV_CONFIG.IMAGE_GENERATION_ENDPOINT),
   
-  // API Keys (if needed)
-  AI_API_KEY: getEnvVar('AI_API_KEY', ''),
-  IMAGE_API_KEY: getEnvVar('IMAGE_API_KEY', ''),
+  // API Keys (handled by secureStorage.ts)
+  // These will be empty and populated at runtime from secure storage
+  AI_API_KEY: '',
+  IMAGE_API_KEY: '',
   
   // File Limits
   MAX_FILE_SIZE_MB: parseInt(getEnvVar('MAX_FILE_SIZE_MB', DEV_CONFIG.MAX_FILE_SIZE_MB)),

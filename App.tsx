@@ -83,7 +83,5 @@ const styles = StyleSheet.create({
     flex: 1,
     userSelect: "none",
     backgroundColor: colors.background,
-    // TODO: Add support for system theme detection
-    // NOTE: Consider adding theme context provider
   }
 });
