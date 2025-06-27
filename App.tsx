@@ -19,6 +19,8 @@ import { uxManager } from './lib/enhancedUX';
 import { validateConfig } from './config/env';
 import { PerformanceToggle } from './components/PerformanceDashboard';
 import { enhancedPerformanceMonitor } from './lib/enhancedPerformance';
+import { advancedPerformanceEnhancer } from './lib/advancedPerformanceEnhancements';
+import AdvancedPerformanceDashboard from './components/AdvancedPerformanceDashboard';
 import { DatabaseProvider } from './db/DatabaseContext';
 import { SyncManager } from './components/SyncManager';
 import { MigrationManager } from './components/MigrationManager';
@@ -64,6 +66,9 @@ export default function App() {
     enhancedPerformanceMonitor.startMonitoring();
     enhancedPerformanceMonitor.trackScreenLoad('App');
     
+    // Initialize advanced performance enhancements
+    console.log('Initializing advanced performance enhancements...');
+    
     // Track app launch for UX adaptation
     uxManager.trackInteraction('app_launch', {
       timestamp: Date.now(),
@@ -104,7 +109,10 @@ export default function App() {
                   />
                 </LazyComponentWrapper>
                 
-                {/* Performance monitoring toggle for development */}
+                {/* Advanced Performance Dashboard */}
+                <AdvancedPerformanceDashboard />
+                
+                {/* Legacy Performance monitoring toggle for development */}
                 <PerformanceToggle />
               </SafeAreaProvider>
             </ErrorBoundary>
