@@ -25,6 +25,7 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "validate-types": "npx ts-node scripts/validate-types.ts",
     "type-coverage": "npx type-coverage --detail",
+    "build:web": "npx expo export:web",
     "perf:analyze": "npx expo-optimize",
     "perf:bundle": "npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android-release.bundle --assets-dest android-release/",
     "perf:profile": "npx react-native start --reset-cache",
