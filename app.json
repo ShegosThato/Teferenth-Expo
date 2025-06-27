@@ -4,11 +4,7 @@
     "slug": "teferenth-expo",
     "version": "1.0.0",
     "sdkVersion": "53.0.0",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,21 +16,41 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.shegosthato.teferenthexpo"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#f9fafb"
       },
-      "package": "com.shegosthato.teferenthexpo"
+      "package": "com.shegosthato.teferenthexpo",
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [],
+      "userInterfaceStyle": "light",
+      "backgroundColor": "#f9fafb"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "static",
+      "name": "Tefereth Scripts",
+      "shortName": "Tefereth",
+      "lang": "en-US",
+      "themeColor": "#f9fafb",
+      "description": "A script writing application",
+      "orientation": "portrait",
+      "backgroundColor": "#f9fafb",
+      "barStyle": "default",
+      "display": "standalone",
+      "startUrl": "/",
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#f9fafb"
+      },
+      "bundler": "metro"
     },
     "extra": {
       "eas": {
