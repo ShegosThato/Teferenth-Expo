@@ -12,6 +12,7 @@ import {
   SettingsScreenLazy as SettingsScreen,
   ScreenPreloader
 } from "./components/LazyScreens";
+import EnhancedHomeScreen from "./screens/EnhancedHomeScreen";
 import { colors, ThemeProvider } from './lib/theme';
 import { NotificationProvider } from './components/EnhancedNotifications';
 import { LazyOnboardingSystem, LazyComponentWrapper } from './components/LazyComponents';
@@ -48,7 +49,7 @@ function RootStack() {
         headerTitle: 'Tefereth Scripts', // Global title
       }}
     >
-      <Stack.Screen name="Library" component={HomeScreen} />
+      <Stack.Screen name="Library" component={EnhancedHomeScreen} />
       <Stack.Screen name="NewProject" component={NewProjectScreen} />
       <Stack.Screen name="Storyboard" component={StoryboardScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />

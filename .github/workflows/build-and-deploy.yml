@@ -1,0 +1,256 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '18'
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+jobs:
+  # Quality checks job
+  quality-checks:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🏗 Setup repo
+        uses: actions/checkout@v4
+        
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          
+      - name: 📦 Install dependencies
+        run: npm ci
+        
+      - name: 🔍 Run build validation
+        run: node scripts/enhanced-validate-build.js
+        
+      - name: 🧪 Run tests
+        run: npm run test:ci
+        
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  # Build Android job
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: quality-checks
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+    
+    steps:
+      - name: 🏗 Setup repo
+        uses: actions/checkout@v4
+        
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: 📦 Install dependencies
+        run: npm ci
+        
+      - name: 🔧 Setup environment
+        run: |
+          echo "ENVIRONMENT=production" >> .env
+          echo "ENABLE_ANALYTICS=true" >> .env
+          echo "ENABLE_CRASH_REPORTING=true" >> .env
+          
+      - name: 🚀 Build Android (Preview)
+        if: github.ref == 'refs/heads/main'
+        run: eas build --platform android --profile preview --non-interactive
+        
+      - name: 🚀 Build Android (Production)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: eas build --platform android --profile production --non-interactive
+        
+      - name: 📱 Submit to Play Store (Internal Track)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: eas submit --platform android --profile production --non-interactive
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+
+  # Build iOS job
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    needs: quality-checks
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+    
+    steps:
+      - name: 🏗 Setup repo
+        uses: actions/checkout@v4
+        
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          
+      - name: 📦 Install dependencies
+        run: npm ci
+        
+      - name: 🔧 Setup environment
+        run: |
+          echo "ENVIRONMENT=production" >> .env
+          echo "ENABLE_ANALYTICS=true" >> .env
+          echo "ENABLE_CRASH_REPORTING=true" >> .env
+          
+      - name: 🚀 Build iOS (Preview)
+        if: github.ref == 'refs/heads/main'
+        run: eas build --platform ios --profile preview --non-interactive
+        
+      - name: 🚀 Build iOS (Production)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: eas build --platform ios --profile production --non-interactive
+        
+      - name: 🍎 Submit to App Store (TestFlight)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: eas submit --platform ios --profile production --non-interactive
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+
+  # Build Web job
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+    needs: quality-checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 🏗 Setup repo
+        uses: actions/checkout@v4
+        
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          
+      - name: 📦 Install dependencies
+        run: npm ci
+        
+      - name: 🌐 Build web
+        run: npx expo export:web
+        
+      - name: 🚀 Deploy to Vercel
+        uses: vercel/action@v1
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # Create release job
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-android, build-ios]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: 🏗 Setup repo
+        uses: actions/checkout@v4
+        
+      - name: 📝 Generate release notes
+        id: release_notes
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Generate release notes
+          cat > release_notes.md << EOF
+          ## 🚀 Tefereth Scripts $VERSION
+          
+          ### ✨ What's New
+          - Enhanced user experience with interactive onboarding
+          - Improved performance and stability
+          - Better accessibility support
+          
+          ### 🐛 Bug Fixes
+          - Fixed memory leaks in video generation
+          - Improved error handling and recovery
+          - Enhanced offline functionality
+          
+          ### 📱 Platform Updates
+          - Updated to Expo SDK 53
+          - React Native 0.76.9 compatibility
+          - Enhanced Android 14 support
+          
+          ### 🔧 Technical Improvements
+          - Comprehensive testing coverage
+          - Performance optimizations
+          - Enhanced security measures
+          
+          ---
+          
+          **Download the app from:**
+          - 📱 [Google Play Store](https://play.google.com/store/apps/details?id=com.shegosthato.teferenthexpo)
+          - 🍎 [Apple App Store](https://apps.apple.com/app/tefereth-scripts/id123456789)
+          EOF
+          
+      - name: 🎉 Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Tefereth Scripts ${{ steps.release_notes.outputs.VERSION }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+
+  # Notify job
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [build-android, build-ios, build-web]
+    if: always()
+    
+    steps:
+      - name: 📢 Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#releases'
+          text: |
+            🚀 Build completed for Tefereth Scripts
+            
+            **Status:** ${{ job.status }}
+            **Branch:** ${{ github.ref }}
+            **Commit:** ${{ github.sha }}
+            
+            **Build Results:**
+            - Android: ${{ needs.build-android.result }}
+            - iOS: ${{ needs.build-ios.result }}
+            - Web: ${{ needs.build-web.result }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
