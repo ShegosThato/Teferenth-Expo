@@ -1,0 +1,37 @@
+name: Build and Deploy Android
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: '✅ Checkout Code'
+        uses: actions/checkout@v2
+
+      - name: '🔧 Setup Node.js'
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: '📦 Install Dependencies'
+        run: npm ci
+
+      - name: '🧪 Run Tests'
+        run: npm test
+
+      - name: '📲 Install EAS CLI'
+        run: npm install -g eas-cli
+
+      - name: '🚀 Build with EAS'
+        run: eas build --platform android --profile production --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: '📤 Submit to Play Store'
+        run: eas submit --platform android --latest
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
